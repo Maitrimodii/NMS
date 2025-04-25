@@ -12,7 +12,5 @@
     "expirationMillis": 60,
     "algorithm": "HS256"
   },
-  "http": {
-    "port": 8080
-  }
+  "http.port": 8080
 }
