@@ -1,6 +1,7 @@
 package org.example.db;
 
 import io.vertx.core.Future;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowSet;
@@ -43,8 +44,16 @@ public class DbQueryHelper
 
         for (var field : fieldNames)
         {
-            values.addValue(data.getValue(field));
-        }
+            Object value = data.getValue(field);
+
+            if (value instanceof JsonArray || value instanceof JsonObject)
+            {
+                values.addValue(value.toString());
+            }
+            else
+            {
+                values.addValue(value);
+            }        }
 
         return client
                 .preparedQuery(query)

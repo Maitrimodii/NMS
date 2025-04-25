@@ -1,7 +1,6 @@
 package org.example.routes;
 
 import io.vertx.core.Vertx;
-import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.ext.web.Router;
 import io.vertx.sqlclient.SqlClient;
 import org.example.services.Discovery;
@@ -22,9 +21,9 @@ public class DiscoveryRoutes
 
     public Router configureRoutes(Vertx vertx)
     {
-        Router router = Router.router(vertx);
+        var router = Router.router(vertx);
 
-        Discovery discoveryService = new Discovery(sqlClient);
+        var discoveryService = new Discovery(sqlClient);
 
         // Create a new discovery
         router.post("/")

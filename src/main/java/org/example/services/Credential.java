@@ -103,28 +103,25 @@ public class Credential
 
     private JsonObject parseAndValidateBody(RoutingContext ctx, boolean isCreate)
     {
-        try {
-            var body = ctx.body().asJsonObject();
 
-            if (body == null) {
-                ApiResponse.error(ctx, "Request body is empty", 400);
-                return null;
-            }
+        var body = ctx.body().asJsonObject();
 
-            if (isCreate && (!body.containsKey("name") || !body.containsKey("attributes") || !body.containsKey("type"))) {
-                ApiResponse.error(ctx, "Missing fields: name, attributes, or type", 400);
-                return null;
-            }
-
-            if (body.containsKey("type") && !"SSH".equals(body.getString("type"))) {
-                ApiResponse.error(ctx, "Unsupported credential type: " + body.getString("type"), 400);
-                return null;
-            }
-
-            return body;
-        } catch (Exception e) {
-            ApiResponse.error(ctx, "Invalid JSON body", 400);
+        if (body == null) {
+            ApiResponse.error(ctx, "Request body is empty", 400);
             return null;
         }
+
+        if (isCreate && (!body.containsKey("name") || !body.containsKey("attributes") || !body.containsKey("type"))) {
+            ApiResponse.error(ctx, "Missing fields: name, attributes, or type", 400);
+            return null;
+        }
+
+        if (body.containsKey("type") && !"SSH".equals(body.getString("type"))) {
+            ApiResponse.error(ctx, "Unsupported credential type: " + body.getString("type"), 400);
+            return null;
+        }
+
+        return body;
+
     }
 }
