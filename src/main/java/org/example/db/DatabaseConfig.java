@@ -14,11 +14,6 @@ public class DatabaseConfig
     {
         var dbConfig = config.getJsonObject("db");
 
-        if (dbConfig == null)
-        {
-            throw new IllegalArgumentException("Database configuration is missing");
-        }
-
         var host = dbConfig.getString("host");
 
         var port = dbConfig.getInteger("port");

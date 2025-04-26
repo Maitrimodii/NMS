@@ -9,15 +9,19 @@ import org.example.utils.JwtUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Main {
+public class Main
+{
 
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
 
-    public static void main(String[] args) {
+    public static void main(String[] args)
+    {
         var vertx = Vertx.vertx();
+
         startServer(vertx)
                 .onSuccess(v -> logger.info("HTTP server started successfully"))
+
                 .onFailure(err -> {
                     logger.error("Failed to start server: {}", err.getMessage());
                     vertx.close();
@@ -38,6 +42,7 @@ public class Main {
                     // Deploy the HttpServer verticle
                     return vertx.deployVerticle(server)
                             .mapEmpty()
+
                             .onComplete(ar ->
                             {
                                 if (ar.succeeded()) {

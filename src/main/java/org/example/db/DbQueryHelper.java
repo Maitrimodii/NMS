@@ -30,7 +30,9 @@ public class DbQueryHelper
 
     public Future<RowSet<Row>> insert(String table, JsonObject data)
     {
-        var fieldNames = data.stream().map(Map.Entry::getKey).toList();
+        var fieldNames = data.stream()
+                .map(Map.Entry::getKey)
+                .toList();
 
         var columns = String.join(", ", fieldNames);
 
@@ -53,7 +55,8 @@ public class DbQueryHelper
             else
             {
                 values.addValue(value);
-            }        }
+            }
+        }
 
         return client
                 .preparedQuery(query)

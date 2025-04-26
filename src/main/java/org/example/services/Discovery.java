@@ -1,6 +1,5 @@
 package org.example.services;
 
-import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.json.JsonArray;
@@ -11,8 +10,7 @@ import org.example.utils.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Objects;
 
 public class Discovery
 {
@@ -23,7 +21,9 @@ public class Discovery
 
     public Discovery(SqlClient sqlClient)
     {
+
         this.dbQueryHelper = new DbQueryHelper(sqlClient);
+
     }
 
     public void createDiscovery(RoutingContext ctx)
@@ -40,16 +40,16 @@ public class Discovery
         var credentialIDs = body.getJsonArray("credential_ids", new JsonArray());
 
         validateCredentialIDs(credentialIDs)
-                .onSuccess(v -> {
 
+                .onSuccess(v -> {
 
                     logger.info("Creating discovery with data: {}", body.encode());
 
                     dbQueryHelper.insert("discoveries", body)
+
                             .onSuccess(results ->
-                            {
-                                ApiResponse.success(ctx, null, "Discovery created successfully", 201);
-                            })
+                                    ApiResponse.success(ctx, null, "Discovery created successfully", 201))
+
                             .onFailure(err ->
                             {
                                 logger.error("Database insert failed: {}", err.getMessage());
@@ -57,8 +57,8 @@ public class Discovery
                             });
                 })
                 .onFailure(err -> {
-                    // If any credential ID is invalid, return a failed response
-                    logger.error("Validation failed: {}", err.getMessage());
+
+                    logger.error("no such credential ids exist: {}", err.getMessage());
                     ApiResponse.error(ctx, err.getMessage(), 400);
                 });
     }
@@ -67,16 +67,9 @@ public class Discovery
     {
         logger.info("Handling GET /discoveries/:id");
 
-        var idParam = ctx.pathParam("id");
+        var id= validateAndGetId(ctx);
 
-        if (idParam == null || idParam.trim().isEmpty())
-        {
-            logger.warn("Discovery ID is empty");
-            ApiResponse.error(ctx, "Discovery ID cannot be empty", 400);
-            return;
-        }
-
-        var id = Integer.parseInt(idParam);
+        if (id == null) return;
 
         dbQueryHelper.fetchOne("discoveries", "id", id)
                 .onSuccess(credential ->
@@ -105,50 +98,13 @@ public class Discovery
             return;
         }
 
+        var id= validateAndGetId(ctx);
 
-        var idParam = ctx.pathParam("id");
+        if (id == null) return;
 
-        if (idParam == null || idParam.trim().isEmpty()) {
-            logger.warn("Discovery ID is empty");
-            ApiResponse.error(ctx, "Discovery ID cannot be empty", 400);
-            return;
-        }
+        logger.info("Updating discovery with data: {}", body.encode());
 
-        int id;
-        try
-        {
-            id = Integer.parseInt(idParam);
-        }
-        catch (NumberFormatException e)
-        {
-            logger.warn("Invalid discovery ID format: {}", idParam);
-            ApiResponse.error(ctx, "Invalid discovery ID format", 400);
-            return;
-        }
-
-        JsonObject data = new JsonObject();
-        if (body.containsKey("name"))
-        {
-            data.put("name", body.getString("name"));
-        }
-        if (body.containsKey("ip"))
-        {
-            data.put("ip", body.getString("ip"));
-        }
-
-        if (body.containsKey("credentialIDs"))
-        {
-            data.put("credentialIDs", body.getJsonArray("credentialIDs"));
-        }
-
-        if (body.containsKey("result"))
-        {
-            data.put("result", body.getJsonArray("result"));
-        }
-
-        logger.info("Updating discovery with data: {}", data.encode());
-
-        dbQueryHelper.update("discoveries", "id", id, data)
+        dbQueryHelper.update("discoveries", "id", id, body)
                 .onSuccess(v -> ApiResponse.success(ctx, null, "Discovery updated successfully", 200))
                 .onFailure(err ->
                 {
@@ -163,26 +119,14 @@ public class Discovery
         logger.info("Handling DELETE /discoveries/:id");
 
 
-        var idParam = ctx.pathParam("id");
+        var id= validateAndGetId(ctx);
 
-        if (idParam == null || idParam.trim().isEmpty())
-        {
-            logger.warn("Discovery ID is empty");
-            ApiResponse.error(ctx, "Discovery ID cannot be empty", 400);
-            return;
-        }
-
-        int id;
-        try {
-            id = Integer.parseInt(idParam);
-        } catch (NumberFormatException e) {
-            logger.warn("Invalid discovery ID format: {}", idParam);
-            ApiResponse.error(ctx, "Invalid discovery ID format", 400);
-            return;
-        }
+        if (id == null) return;
 
         dbQueryHelper.delete("discoveries", "id", id)
+
                 .onSuccess(v -> ApiResponse.success(ctx, null, "Discovery deleted successfully", 200))
+
                 .onFailure(err ->
                 {
                     logger.error("Failed to delete discovery: {}", err.getMessage());
@@ -198,14 +142,13 @@ public class Discovery
         logger.info("Fetching all discoveries");
 
         dbQueryHelper.fetchAll("discoveries")
+
                 .compose(discoveries ->
-                {
-                    if (discoveries == null) {
-                        return Future.succeededFuture(new JsonArray());
-                    }
-                    return Future.succeededFuture(discoveries);
-                })
-                .onSuccess(discoveries -> ApiResponse.success(ctx, discoveries, "discoveries retrieved successfully", 200))
+                        Future.succeededFuture(Objects.requireNonNullElseGet(discoveries, JsonArray::new)))
+
+                .onSuccess(discoveries ->
+                        ApiResponse.success(ctx, discoveries, "discoveries retrieved successfully", 200))
+
                 .onFailure(err ->
                 {
                     logger.error("Failed to fetch discoveries: {}", err.getMessage());
@@ -214,28 +157,65 @@ public class Discovery
     }
 
 
-    private Future<Void> validateCredentialIDs(JsonArray credentialIDs) {
-        if (credentialIDs.isEmpty()) {
-            return Future.succeededFuture();
+    private Future<Object> validateCredentialIDs(JsonArray credentialIDs)
+    {
+
+        if (credentialIDs == null || credentialIDs.isEmpty())
+        {
+            return Future.failedFuture("credential_ids must be present and not empty");
         }
 
-        var checks = new ArrayList<Future>();
+        var future = Future.succeededFuture();
+
         for (int i = 0; i < credentialIDs.size(); i++) {
             int id = credentialIDs.getInteger(i);
-            checks.add(dbQueryHelper.fetchOne("credentials", "id", id));
+
+            future = future.compose(v ->
+                    dbQueryHelper.fetchOne("credentials", "id", id)
+
+                            .compose(result ->
+                            {
+                                if (result == null)
+                                {
+                                    return Future.failedFuture("Credential ID " + id + " does not exist.");
+                                }
+                                return Future.succeededFuture();
+                            })
+            );
+        }
+        return future;
+    }
+
+    private Integer validateAndGetId(RoutingContext ctx)
+    {
+        var idParam = ctx.pathParam("id");
+
+        if (idParam == null || idParam.trim().isEmpty())
+        {
+            logger.warn("Discovery ID is empty");
+
+            ApiResponse.error(ctx, "Discovery ID cannot be empty", 400);
+
+            return null;
         }
 
-        return CompositeFuture.all(checks)
-                .compose(cf -> {
-                    // Iterate through the result of each check
-                    for (int i = 0; i < cf.size(); i++) {
-                        JsonObject result = (JsonObject) cf.resultAt(i);
-                        if (result == null) {
-                            return Future.failedFuture("Credential ID " + credentialIDs.getInteger(i) + " does not exist.");
-                        }
-                    }
-                    return Future.succeededFuture();
-                });
+        int id;
+
+        try
+        {
+            id = Integer.parseInt(idParam);
+        }
+
+        catch (NumberFormatException e)
+        {
+            logger.warn("Invalid discovery ID format: {}", idParam);
+
+            ApiResponse.error(ctx, "Invalid discovery ID format", 400);
+
+            return null;
+        }
+
+        return id;
     }
 
     private JsonObject parseAndValidateBody(RoutingContext ctx)
@@ -244,17 +224,22 @@ public class Discovery
 
         logger.debug("Request body: {}", body != null ? body.encode() : "null");
 
-        if (body == null) {
+        if (body == null)
+        {
             ApiResponse.error(ctx, "Request body is empty", 400);
+
             return null;
         }
 
 
-        if (body.containsKey("credentialIDs")) {
-            var credentialIDs = body.getJsonArray("credentialIDs");
+        if (body.containsKey("credential_ids")) {
 
-            if (credentialIDs == null) {
+            var credentialIDs = body.getJsonArray("credential_ids");
+
+            if (credentialIDs == null)
+            {
                 ApiResponse.error(ctx, "credentialIDs must be a valid JSON array", 400);
+
                 return null;
             }
 

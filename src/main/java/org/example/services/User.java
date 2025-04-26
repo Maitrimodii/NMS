@@ -43,33 +43,25 @@ public class User
             return;
         }
 
-        try
-        {
-            validateUserData(body);
+        if (validateUserData(ctx, body)) return;
 
-            var username = body.getString("username");
+        var username = body.getString("username");
 
-            var password = body.getString("password");
+        var password = body.getString("password");
 
-            var cleanedData = new JsonObject()
-                    .put("username", username)
-                    .put("password", hashPassword(password));
+        var data = new JsonObject()
+                .put("username", username)
+                .put("password", hashPassword(password));
 
-            logger.info("Registering user with data: {}", cleanedData.encode());
+        logger.info("Registering user with data: {}", data.encode());
 
-            dbQueryHelper.insert("users", cleanedData)
-                    .onSuccess(v -> ApiResponse.success(ctx, null, "User registered successfully", 201))
-                    .onFailure(err ->
-                    {
-                        logger.error("Database insert failed: {}", err.getMessage());
-                        ApiResponse.error(ctx, err.getMessage(), 400);
-                    });
-        }
-        catch (IllegalArgumentException exception)
-        {
-            logger.warn("Validation failed: {}", exception.getMessage());
-            ApiResponse.error(ctx, exception.getMessage(), 400);
-        }
+        dbQueryHelper.insert("users", data)
+                .onSuccess(v -> ApiResponse.success(ctx, null, "User registered successfully", 201))
+                .onFailure(err ->
+                {
+                    logger.error("Database insert failed: {}", err.getMessage());
+                    ApiResponse.error(ctx, err.getMessage(), 400);
+                });
     }
 
     public void authenticateUser(RoutingContext ctx)
@@ -83,57 +75,50 @@ public class User
             return;
         }
 
-        try
-        {
-            validateUserData(body);
 
-            var username = body.getString("username");
+        if (validateUserData(ctx, body)) return;
 
-            var password = body.getString("password");
+        var username = body.getString("username");
 
-            dbQueryHelper.fetchOne("users", "username", username)
-                    .compose(user ->
+        var password = body.getString("password");
+
+        dbQueryHelper.fetchOne("users", "username", username)
+                .compose(user ->
+                {
+                    if (user == null)
                     {
-                        if (user == null)
-                        {
-                            logger.warn("User not found: {}", username);
-                            return Future.failedFuture("User not found");
-                        }
+                        logger.warn("User not found: {}", username);
+                        return Future.failedFuture("User not found");
+                    }
 
-                        var storedPassword = user.getString("password");
+                    var storedPassword = user.getString("password");
 
-                        var hashedInputPassword = hashPassword(password);
+                    var hashedInputPassword = hashPassword(password);
 
-                        if (storedPassword.equals(hashedInputPassword))
-                        {
-                            user.remove("password");
-
-                            var token = jwtUtil.generateToken(username);
-
-                            user.put("token", token);
-
-                            return Future.succeededFuture(user);
-                        }
-                        else
-                        {
-                            logger.warn("Invalid credentials for user: {}", username);
-                            return Future.failedFuture("Invalid credentials");
-                        }
-                    })
-
-                    .onSuccess(user -> ApiResponse.success(ctx, user, "Login successful", 200))
-
-                    .onFailure(err ->
+                    if (storedPassword.equals(hashedInputPassword))
                     {
-                        logger.error("Login failed: {}", err.getMessage());
-                        ApiResponse.error(ctx, err.getMessage(), 401);
-                    });
-        }
-        catch (IllegalArgumentException e)
-        {
-            logger.warn("Validation failed: {}", e.getMessage());
-            ApiResponse.error(ctx, e.getMessage(), 400);
-        }
+                        user.remove("password");
+
+                        var token = jwtUtil.generateToken(username);
+
+                        user.put("token", token);
+
+                        return Future.succeededFuture(user);
+                    }
+                    else
+                    {
+                        logger.warn("Invalid password for user: {}", username);
+                        return Future.failedFuture("Invalid password");
+                    }
+                })
+
+                .onSuccess(user -> ApiResponse.success(ctx, user, "Login successful", 200))
+
+                .onFailure(err ->
+                {
+                    logger.error("Login failed: {}", err.getMessage());
+                    ApiResponse.error(ctx, err.getMessage(), 401);
+                });
     }
 
     private JsonObject parseRequestBody(RoutingContext ctx)
@@ -177,17 +162,8 @@ public class User
         }
     }
 
-    private void validateUserData(JsonObject userData)
+    private boolean validateUserData(RoutingContext ctx, JsonObject userData)
     {
-        if (userData == null)
-        {
-            throw new IllegalArgumentException("Request body is empty");
-        }
-
-        if (!userData.containsKey("username") || !userData.containsKey("password"))
-        {
-            throw new IllegalArgumentException("Username and password are required");
-        }
 
         var username = userData.getString("username");
 
@@ -195,12 +171,17 @@ public class User
 
         if (username == null || username.trim().isEmpty())
         {
-            throw new IllegalArgumentException("Username cannot be empty");
+            ApiResponse.error(ctx, "Username cannot be empty", 400);
+
+            return true;
         }
 
         if (password == null || password.trim().isEmpty())
         {
-            throw new IllegalArgumentException("Password cannot be empty");
+            ApiResponse.error(ctx, "Password cannot be empty", 400);
+
+            return true;
         }
+        return false;
     }
 }

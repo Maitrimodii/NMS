@@ -28,32 +28,27 @@ public class HttpServer extends AbstractVerticle
     public HttpServer(SqlClient sqlClient, JwtUtil jwtUtil, int port)
     {
         this.sqlClient = sqlClient;
+
         this.jwtUtil = jwtUtil;
+
         this.port = port;
     }
 
     @Override
     public void start(Promise<Void> startPromise)
     {
-        try
-        {
-            var router = setupRouter();
 
-            vertx.createHttpServer()
-                    .requestHandler(router)
-                    .listen(port)
-                    .onSuccess(server -> startPromise.complete())
-                    .onFailure(err ->
-                    {
-                        logger.error("Failed to start HTTP server: {}", err.getMessage());
-                        startPromise.fail(err);
-                    });
-        }
-        catch (Exception e)
-        {
-            logger.error("Error setting up HTTP server: {}", e.getMessage());
-            startPromise.fail(e);
-        }
+        var router = setupRouter();
+
+        vertx.createHttpServer()
+                .requestHandler(router)
+                .listen(port)
+                .onSuccess(server -> startPromise.complete())
+                .onFailure(err ->
+                {
+                    startPromise.fail(err);
+                });
+
     }
 
     private Router setupRouter()
@@ -62,12 +57,7 @@ public class HttpServer extends AbstractVerticle
 
         // Global handler for request body parsing
         router.route()
-                .handler(BodyHandler.create())
-                .handler(ctx ->
-                {
-                    logger.info("BodyHandler invoked for path: {}", ctx.request().path());
-                    ctx.next();
-                });
+                .handler(BodyHandler.create());
 
         var userRoutes = new UserRoutes(sqlClient, jwtUtil);
 

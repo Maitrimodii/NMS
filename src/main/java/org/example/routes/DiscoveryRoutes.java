@@ -27,23 +27,19 @@ public class DiscoveryRoutes
 
         // Create a new discovery
         router.post("/")
-                .handler(discoveryService::createDiscovery)
-                .failureHandler(ctx -> logger.error("Failed to create discovery: {}", ctx.failure().getMessage()));
+                .handler(discoveryService::createDiscovery);
 
         // Get a discovery by ID
         router.get("/:id")
-                .handler(discoveryService::getDiscovery)
-                .failureHandler(ctx -> logger.error("Failed to get discovery: {}", ctx.failure().getMessage()));
+                .handler(discoveryService::getDiscovery);
 
         // Update a discovery by ID
         router.put("/:id")
-                .handler(discoveryService::updateDiscovery)
-                .failureHandler(ctx -> logger.error("Failed to update discovery: {}", ctx.failure().getMessage()));
+                .handler(discoveryService::updateDiscovery);
 
         // Delete a discovery by ID
         router.delete("/:id")
-                .handler(discoveryService::deleteDiscovery)
-                .failureHandler(ctx -> logger.error("Failed to delete discovery: {}", ctx.failure().getMessage()));
+                .handler(discoveryService::deleteDiscovery);
 
         // Get all discoveries
         router.get("/")

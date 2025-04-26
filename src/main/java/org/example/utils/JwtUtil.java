@@ -57,7 +57,8 @@ public class JwtUtil {
         this.jwtOptions = new JWTOptions().setExpiresInSeconds(Math.toIntExact(expirationMillis / 1000));
     }
 
-    public String generateToken(String username) {
+    public String generateToken(String username)
+    {
 
         logger.info("Generating JWT for username: {}", username);
 
@@ -66,7 +67,8 @@ public class JwtUtil {
         return jwtAuth.generateToken(claims, jwtOptions);
     }
 
-    public JWTAuth getAuthProvider() {
+    public JWTAuth getAuthProvider()
+    {
         return jwtAuth;
     }
 }
